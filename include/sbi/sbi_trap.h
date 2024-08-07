@@ -84,21 +84,27 @@
 #define SBI_TRAP_REGS_mstatus			33
 /** Index of mstatusH member in sbi_trap_regs */
 #define SBI_TRAP_REGS_mstatusH			34
+/** mnepc **/
+#define SBI_TRAP_REGS_mnepc 35
+/** mnstatus **/
+#define SBI_TRAP_REGS_mnstatus 36
 /** Last member index in sbi_trap_regs */
-#define SBI_TRAP_REGS_last			35
+#define SBI_TRAP_REGS_last			37
 
 /** Index of cause member in sbi_trap_info */
 #define SBI_TRAP_INFO_cause			0
+/** mncause **/
+#define SBI_TRAP_INFO_mncause       1
 /** Index of tval member in sbi_trap_info */
-#define SBI_TRAP_INFO_tval			1
+#define SBI_TRAP_INFO_tval			2
 /** Index of tval2 member in sbi_trap_info */
-#define SBI_TRAP_INFO_tval2			2
+#define SBI_TRAP_INFO_tval2			3
 /** Index of tinst member in sbi_trap_info */
-#define SBI_TRAP_INFO_tinst			3
+#define SBI_TRAP_INFO_tinst			4
 /** Index of gva member in sbi_trap_info */
-#define SBI_TRAP_INFO_gva			4
+#define SBI_TRAP_INFO_gva			5
 /** Last member index in sbi_trap_info */
-#define SBI_TRAP_INFO_last			5
+#define SBI_TRAP_INFO_last			6
 
 /* clang-format on */
 
@@ -194,12 +200,15 @@ struct sbi_trap_regs {
 	unsigned long mstatus;
 	/** mstatusH register state (only for 32-bit) */
 	unsigned long mstatusH;
+    unsigned long mnepc;
+    unsigned long mnstatus; 
 };
 
 /** Representation of trap details */
 struct sbi_trap_info {
 	/** cause Trap exception cause */
 	unsigned long cause;
+    unsigned long mncause;
 	/** tval Trap value */
 	unsigned long tval;
 	/** tval2 Trap value 2 */
@@ -251,6 +260,7 @@ static inline void sbi_trap_set_context(struct sbi_scratch *scratch,
 }
 
 struct sbi_trap_context *sbi_trap_handler(struct sbi_trap_context *tcntx);
+struct sbi_trap_context *sbi_rnmi_trap_handler(struct sbi_trap_context *tcntx);
 
 #endif
 

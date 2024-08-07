@@ -678,6 +678,7 @@ const struct sbi_hart_ext_data sbi_hart_ext[] = {
 	__SBI_HART_EXT_DATA(smcdeleg, SBI_HART_EXT_SMCDELEG),
 	__SBI_HART_EXT_DATA(sscsrind, SBI_HART_EXT_SSCSRIND),
 	__SBI_HART_EXT_DATA(ssccfg, SBI_HART_EXT_SSCCFG),
+    __SBI_HART_EXT_DATA(smrnmi, SBI_HART_EXT_SMRNMI),
 	__SBI_HART_EXT_DATA(svade, SBI_HART_EXT_SVADE),
 	__SBI_HART_EXT_DATA(svadu, SBI_HART_EXT_SVADU),
 };
@@ -716,6 +717,21 @@ void sbi_hart_get_extensions_str(struct sbi_scratch *scratch,
 		extensions_str[offset - 1] = '\0';
 	else
 		sbi_strncpy(extensions_str, "none", nestr);
+}
+
+static int hart_smrnmi_get_allowed(void)
+{
+	unsigned long val;
+	struct sbi_trap_info trap = {0};
+
+	val = csr_read_allowed(CSR_MNSTATUS, (unsigned long)&trap);
+	if (!trap.cause) {
+		val |= MNSTATUS_NMIE;
+		csr_write(CSR_MNSTATUS, val);
+		return true;
+	} else {
+		return false;
+	}
 }
 
 static unsigned long hart_pmp_get_allowed_addr(void)
@@ -786,6 +802,13 @@ static int hart_detect_features(struct sbi_scratch *scratch)
 	hfeatures->pmp_count = 0;
 	hfeatures->mhpm_mask = 0;
 	hfeatures->priv_version = SBI_HART_PRIV_VER_UNKNOWN;
+
+	/*
+	 * Detect Resumable Non-Maskable Interrupts
+	 * If it exists we must enable it before all traps.
+	 */
+	if (hart_smrnmi_get_allowed())
+		__sbi_hart_update_extension(hfeatures, SBI_HART_EXT_SMRNMI, true);
 
 #define __check_hpm_csr(__csr, __mask) 					  \
 	oldval = csr_read_allowed(__csr, (ulong)&trap);			  \

@@ -348,6 +348,7 @@ _start_warm:
 
 	/* update the mscratch */
 	csrw	CSR_MSCRATCH, tp
+    csrw    CSR_MNSCRATCH, tp
 
 	/* Setup stack */
 	add	sp, tp, zero
@@ -485,6 +486,48 @@ memcmp:
 	csrrw	tp, CSR_MSCRATCH, tp
 .endm
 
+.macro	TRAP_SAVE_AND_SETUP_SP_T0_RNMI
+	/* Swap TP and MNSCRATCH */
+	csrrw	tp, CSR_MNSCRATCH, tp
+
+	/* Save T0 in scratch space */
+	REG_S	t0, SBI_SCRATCH_TMP0_OFFSET(tp)
+
+	/*
+	 * Set T0 to appropriate exception stack
+	 *
+	 * Came_From_M_Mode = ((MSTATUS.MPP < PRV_M) ? 1 : 0) - 1;
+	 * Exception_Stack = TP ^ (Came_From_M_Mode & (SP ^ TP))
+	 *
+	 * Came_From_M_Mode = 0    ==>    Exception_Stack = TP
+	 * Came_From_M_Mode = -1   ==>    Exception_Stack = SP
+	 */
+	csrr	t0, CSR_MNSTATUS
+	srl	t0, t0, MNSTATUS_MNPP_SHIFT
+	and	t0, t0, PRV_M
+	slti	t0, t0, PRV_M
+	add	t0, t0, -1
+	xor	sp, sp, tp
+	and	t0, t0, sp
+	xor	sp, sp, tp
+	xor	t0, tp, t0
+
+	/* Save original SP on exception stack */
+	REG_S	sp, (SBI_TRAP_REGS_OFFSET(sp) - SBI_TRAP_CONTEXT_SIZE)(t0)
+
+	/* Set SP to exception stack and make room for trap context */
+	add	sp, t0, -(SBI_TRAP_CONTEXT_SIZE)
+
+	/* Restore T0 from scratch space */
+	REG_L	t0, SBI_SCRATCH_TMP0_OFFSET(tp)
+
+	/* Save T0 on stack */
+	REG_S	t0, SBI_TRAP_REGS_OFFSET(t0)(sp)
+
+	/* Swap TP and MNSCRATCH */
+	csrrw	tp, CSR_MNSCRATCH, tp
+.endm
+
 .macro	TRAP_SAVE_MEPC_MSTATUS have_mstatush
 	/* Save MEPC and MSTATUS CSRs */
 	csrr	t0, CSR_MEPC
@@ -497,6 +540,14 @@ memcmp:
 	.else
 	REG_S	zero, SBI_TRAP_REGS_OFFSET(mstatusH)(sp)
 	.endif
+.endm
+
+.macro	TRAP_SAVE_MNEPC_MNSTATUS
+	/* Save MNEPC and MNSTATUS CSRs */
+	csrr	t0, CSR_MNEPC
+	REG_S	t0, SBI_TRAP_REGS_OFFSET(mnepc)(sp)
+	csrr	t0, CSR_MNSTATUS
+	REG_S	t0, SBI_TRAP_REGS_OFFSET(mnstatus)(sp)
 .endm
 
 .macro	TRAP_SAVE_GENERAL_REGS_EXCEPT_SP_T0
@@ -559,10 +610,21 @@ memcmp:
 	REG_S	t0, (SBI_TRAP_REGS_SIZE + SBI_TRAP_INFO_OFFSET(gva))(sp)
 .endm
 
+.macro TRAP_SAVE_INFO_RNMI
+    csrr t0, CSR_MNCAUSE
+    REG_S t0, (SBI_TRAP_REGS_SIZE + SBI_TRAP_INFO_OFFSET(mncause))(sp)
+.endm
+
 .macro	TRAP_CALL_C_ROUTINE
 	/* Call C routine */
 	add	a0, sp, zero
 	call	sbi_trap_handler
+.endm
+
+.macro TRAP_CALL_C_ROUTINE_RNMI
+    /* Call C routine */
+    add a0, sp, zero
+    call sbi_rnmi_trap_handler
 .endm
 
 .macro	TRAP_RESTORE_GENERAL_REGS_EXCEPT_A0_T0
@@ -610,6 +672,14 @@ memcmp:
 	.endif
 .endm
 
+.macro	TRAP_RESTORE_MNEPC_MNSTATUS
+	/* Restore MNEPC and MNSTATUS CSRs */
+	REG_L	t0, SBI_TRAP_REGS_OFFSET(mnepc)(a0)
+	csrw	CSR_MNEPC, t0
+	REG_L	t0, SBI_TRAP_REGS_OFFSET(mnstatus)(a0)
+	csrw	CSR_MNSTATUS, t0
+.endm
+
 .macro TRAP_RESTORE_A0_T0
 	/* Restore T0 */
 	REG_L	t0, SBI_TRAP_REGS_OFFSET(t0)(a0)
@@ -639,6 +709,28 @@ _trap_handler:
 	TRAP_RESTORE_A0_T0
 
 	mret
+
+	.section .entry, "ax", %progbits
+	.align 3
+	.globl _trap_rnmi_handler
+_trap_rnmi_handler:
+    TRAP_SAVE_AND_SETUP_SP_T0_RNMI
+
+    TRAP_SAVE_MNEPC_MNSTATUS
+
+    TRAP_SAVE_GENERAL_REGS_EXCEPT_SP_T0
+
+    TRAP_SAVE_INFO_RNMI
+
+    TRAP_CALL_C_ROUTINE_RNMI
+
+    TRAP_RESTORE_GENERAL_REGS_EXCEPT_A0_T0
+
+    TRAP_RESTORE_MNEPC_MNSTATUS
+
+    TRAP_RESTORE_A0_T0
+
+	mnret
 
 	.section .entry, "ax", %progbits
 	.align 3

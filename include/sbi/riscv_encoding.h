@@ -207,6 +207,11 @@
 
 #endif
 
+#define MNSTATUS_NMIE			(_UL(0x8))
+#define MNSTATUS_MNPV			(_UL(0x80))
+#define MNSTATUS_MNPP_SHIFT     11
+#define MNSTATUS_MNPP           (_UL(3) << MNSTATUS_MNPP_SHIFT)
+
 #define MHPMEVENT_SSCOF_MASK		_ULL(0xFFFF000000000000)
 
 #define ENVCFG_STCE			(_ULL(1) << 63)
@@ -738,6 +743,12 @@
 #define CSR_MSTATEEN2H			0x31E
 #define CSR_MSTATEEN3			0x30F
 #define CSR_MSTATEEN3H			0x31F
+
+/* Smrnmi extension registers */
+#define CSR_MNSCRATCH			0x740
+#define CSR_MNEPC			0x741
+#define CSR_MNCAUSE			0x742
+#define CSR_MNSTATUS			0x744
 
 /* Machine-Level High-Half CSRs (AIA) */
 #define CSR_MIDELEGH			0x313

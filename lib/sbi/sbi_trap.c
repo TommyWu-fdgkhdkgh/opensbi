@@ -351,3 +351,17 @@ trap_done:
 	sbi_trap_set_context(scratch, tcntx->prev_context);
 	return tcntx;
 }
+
+struct sbi_trap_context *sbi_rnmi_trap_handler(struct sbi_trap_context *tcntx)
+{
+    struct sbi_trap_regs *regs = &tcntx->regs;
+	const struct sbi_trap_info *trap = &tcntx->trap;
+
+    sbi_printf("===========================\n");
+    sbi_printf("mncause : 0x%lx\n", trap->mncause);
+    sbi_printf("mnstatus : 0x%lx\n", regs->mnstatus);
+    sbi_printf("mnepc : 0x%lx\n", regs->mnepc);
+	sbi_printf("trigger the rnmi interrupt!\n");
+    sbi_printf("===========================\n");
+    return tcntx;
+}

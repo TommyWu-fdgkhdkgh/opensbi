@@ -63,6 +63,8 @@ enum sbi_hart_extensions {
 	SBI_HART_EXT_SSCSRIND,
 	/** Hart has Ssccfg extension */
 	SBI_HART_EXT_SSCCFG,
+    /** Hart has Smrnmi extension */
+    SBI_HART_EXT_SMRNMI,
 	/** Hart has Svade extension */
 	SBI_HART_EXT_SVADE,
 	/** Hart has Svadu extension */
